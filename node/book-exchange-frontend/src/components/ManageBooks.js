@@ -3,7 +3,7 @@ import { Modal, Button } from 'react-bootstrap';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 import { useNavigate } from 'react-router-dom'; // Import useNavigate for redirection
-import { FaUserCircle } from 'react-icons/fa'; // Import user icon from react-icons
+import { FaUserCircle, FaBell } from 'react-icons/fa'; // Import user icon from react-icons
 import api from './Api'; // Ensure this points to your API service
 
 const ITEMS_PER_PAGE = 10;
@@ -25,7 +25,7 @@ const ManageBooks = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddFormOpen, setIsAddFormOpen] = useState(false); // Control modal visibility
   const [editBook, setEditBook] = useState(null);
-  const [notification, setNotification] = useState(null);
+  const [notifications, setNotifications] = useState(null);
   
   const navigate = useNavigate(); // Initialize useNavigate
 
@@ -54,7 +54,11 @@ const ManageBooks = () => {
           email: profileData.user.email,
           date_joined: profileData.user.date_joined,
         });
-  
+        
+        // Fetch notifications
+        const notificationsResponse = await api.get('exchange-requests/', { headers });
+        setNotifications(notificationsResponse.data);
+
         const books = profileData.books;
         setUserBooks(books); // Set the books for initial rendering
         setOriginalBooks(books); // Save original books for search filtering
@@ -98,6 +102,8 @@ const ManageBooks = () => {
   const handleProfile = () => {
     navigate('/profile');
   };
+  
+  const handleNotifications = () => navigate('/notifications');
   
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -156,21 +162,30 @@ const ManageBooks = () => {
   };
 
   const handleEditBook = async (bookId) => {
+    const book = userBooks.find((b) => b.id === bookId);
+    if (!book) {
+      console.error('Book not found');
+      return;
+    }
+
+    setNewBook({
+      title: book.title,
+      author: book.author,
+      genre: book.genre,
+      condition: book.condition,
+      availability: book.availability,
+      id: book.id,
+    });
+
+    setIsAddFormOpen(true);
+  };
+
+  const handleUpdateBook = async (bookId) => {
   const book = userBooks.find((b) => b.id === bookId);
   if (!book) {
     console.error('Book not found');
     return;
   }
-
-  // Pre-fill the form with the existing book data for editing
-  setNewBook({
-    title: book.title,
-    author: book.author,
-    genre: book.genre,
-    condition: book.condition,
-    availability: book.availability,
-    id: book.id, // Ensure the book ID is available for updating
-  });
 
   setIsAddFormOpen(true); // Open the form to edit the book
 
@@ -270,13 +285,20 @@ const handleSearchQueryChange = (e) => {
             Search
           </button>
         </div>
+        <div style={styles.userSection}>
+    {/* Notification Icon */}
+    <div style={styles.notificationIconContainer} onClick={handleNotifications}>
+      <FaBell style={styles.notificationIcon} />
+      {notifications.length > 0 && <span style={styles.notificationBadge}>{notifications.length}</span>}
+      </div>
         <h1 style={styles.userText} >
         Welcome {userData.username},</h1>
         <div style={styles.userIconContainer}>
-        <FaUserCircle
-          onClick={toggleDropdown}
+          <FaUserCircle
+            onClick={toggleDropdown}
           style={styles.userIcon}
         />
+
         {isDropdownOpen && (
           <div style={styles.dropdown}>
                 {/* Manage Books Option */}
@@ -293,6 +315,7 @@ const handleSearchQueryChange = (e) => {
               </div>
         )}
       </div>
+    </div>
     </header>
 
       {/* Book Listing Section */}
@@ -380,19 +403,30 @@ const handleSearchQueryChange = (e) => {
 )}
 
          {/* Button to open the add book form (modal) */}
-         <button onClick={() => setIsAddFormOpen(true)} style={styles.addBookButton}>
-          Add Book
-        </button>
+<button onClick={() => {
+  setIsAddFormOpen(true);
+  setNewBook({
+    title: '',
+    author: '',
+    genre: '',
+    condition: '',
+    availability: 'true', // Default to available when adding
+  }); // Reset form for new book
+}} style={styles.addBookButton}>
+  Add Book
+</button>
 
-        {/* Modal for adding book */}
-        {isAddFormOpen && (
+{/* Modal for adding or editing book */}
+{isAddFormOpen && (
   <div style={styles.modalOverlay}>
     <div style={styles.modalContent}>
       <h2 style={styles.modalTitle}>
-      {newBook.id ? 'Edit Book' : 'Add New Book'}
+        {newBook.id ? 'Edit Book' : 'Add New Book'}
       </h2>
 
-      <form onSubmit={handleAddBook}>
+      <form
+        onSubmit={newBook.id ? () => handleUpdateBook(newBook.id) : handleAddBook}
+      >
         <div style={styles.formGroup}>
           <label style={styles.label}>Title:</label>
           <input
@@ -470,13 +504,18 @@ const handleSearchQueryChange = (e) => {
         </div>
 
         <div style={styles.buttonGroup}>
-          <button type="submit" style={styles.submitButton}>Submit</button>
-          <button type="button" onClick={() => setIsAddFormOpen(false)} style={styles.cancelButton}>Cancel</button>
+          <button type="submit" style={styles.submitButton}>
+            {newBook.id ? 'Update Book' : 'Add Book'}
+          </button>
+          <button type="button" onClick={() => setIsAddFormOpen(false)} style={styles.cancelButton}>
+            Cancel
+          </button>
         </div>
       </form>
     </div>
   </div>
 )}
+
       </section>
     </div>
   );
@@ -487,6 +526,7 @@ const styles = {
     backgroundColor: '#f7f7f7',
     minHeight: '100vh',
   },
+  
   profileHeader: {
     display: 'flex',
     justifyContent: 'space-between',
@@ -497,18 +537,70 @@ const styles = {
     borderRadius: '8px',
     boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
   },
-  headerTitle: {
+  searchContainer: {
+    flexGrow: 1,
+    display: 'flex',
+    justifyContent: 'center',
+    marginRight: '20px',
+  },
+  searchInput: {
+    padding: '10px',
+    border: '1px solid white',
+    borderRadius: '5px',
+    width: '200px',
+  },
+  searchButton: {
+    marginLeft: '10px',
+    backgroundColor: '#5f6393',
+    color: 'white',
+    padding: '10px 20px',
+    border: '1px solid white',
+    borderRadius: '5px',
+    cursor: 'pointer',
+  },
+  userSection: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '15px', // Ensures proper spacing between elements
+  },
+  notificationIconContainer: {
+    position: 'relative',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+  },
+  notificationIcon: {
     fontSize: '1.5rem',
-    fontWeight: '600',
+    color: 'white',
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: '-5px',
+    right: '-5px',
+    backgroundColor: 'red',
+    color: 'white',
+    borderRadius: '50%',
+    fontSize: '0.75rem',
+    width: '18px',
+    height: '18px',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  userText: {
+    fontSize: '1rem',
+    color: 'white',
+    marginLeft: '10px',
   },
   userIconContainer: {
     position: 'relative',
+    display: 'flex',
+    alignItems: 'center',
     cursor: 'pointer',
   },
   userIcon: {
     fontSize: '2rem',
-    cursor: 'pointer',
-    marginRight: '15px',
+    color: 'white',
   },
   dropdown: {
     position: 'absolute',
@@ -543,20 +635,6 @@ const styles = {
     width: '100%',
     cursor: 'pointer',
     transition: 'background-color 0.10s, text-decoration 0.2s', // Add transition for underline
-  },
-  logoutButton: {
-    padding: '10px 20px',
-    fontSize: '16px',
-    border: 'none',
-    backgroundColor: 'transparent',
-    textAlign: 'left',
-    width: '100%',
-    cursor: 'pointer',
-    transition: 'background-color 0.2s, text-decoration 0.2s', // Add transition for underline
-  },
-  userText: {
-    fontSize: '1rem',
-    marginLeft: '310px',
   },
   section: {
     marginBottom: '20px',
@@ -647,26 +725,14 @@ const styles = {
     color: '#fff',
     fontWeight: 'bold',
   },
-  searchContainer: {
-    display: 'flex',
-    justifyContent: 'center',
-    marginBottom: '5px',
-  },
-  searchInput: {
-    padding: '10px',
-    marginLeft: '280px',
-    border: '1px solid #ccc',
-    borderRadius: '5px',
-    width: '200px',
-  },
-  searchButton: {
-    marginLeft: '10px',
-    backgroundColor: '#5f6393',
-    color: 'white',
+  logoutButton: {
     padding: '10px 20px',
-    border: '1px solid white',  // Added white border
-    borderRadius: '5px',
-    cursor: 'pointer,',
+    fontSize: '16px',
+    border: 'none',
+    backgroundColor: 'transparent',
+    textAlign: 'left',
+    width: '100%',
+    cursor: 'pointer',
   },
   addBookButton: {
     marginLeft: '10px',

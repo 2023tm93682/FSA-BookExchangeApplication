@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom'; // Import useNavigate for redirection
-import { FaUserCircle } from 'react-icons/fa'; // Import user icon from react-icons
+import { FaUserCircle, FaBell } from 'react-icons/fa'; // Import user icon from react-icons
 import api from './Api'; // Ensure this points to your API service
 
 const ITEMS_PER_PAGE = 10;
@@ -13,6 +13,7 @@ const MyBooks = () => {
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
+  const [notifications, setNotifications] = useState([]);
   const navigate = useNavigate(); // Initialize useNavigate
 
   // Helper function to get access token
@@ -40,6 +41,10 @@ const MyBooks = () => {
           email: profileData.user.email,
           date_joined: profileData.user.date_joined,
         });
+
+        // Fetch notifications
+        const notificationsResponse = await api.get('exchange-requests/', { headers });
+        setNotifications(notificationsResponse.data);
   
         const books = profileData.books;
         setUserBooks(books); // Set the books for initial rendering
@@ -84,6 +89,8 @@ const MyBooks = () => {
   const handleProfile = () => {
     navigate('/profile');
   };
+  
+  const handleNotifications = () => navigate('/notifications');
 
   // Pagination logic
 const totalPages = Math.ceil(userBooks.length / ITEMS_PER_PAGE);
@@ -130,49 +137,46 @@ const handleSearchQueryChange = (e) => {
   return (
     <div style={styles.profileContainer}>
       
-    <header style={styles.profileHeader}>
-    <h1 style={{ fontSize: '2rem', marginBottom: '1px' }}>
-        Book Exchange Platform
-        </h1>
-      {/* Search Form */}
-      <div style={styles.searchContainer}>
-          <input
-            type="text"
-            placeholder="Search Books"
-            value={searchQuery}
-            onChange={handleSearchQueryChange}
-            style={styles.searchInput}
-          />
-          <button onClick={handleSearch} style={styles.searchButton}>
-            Search
-          </button>
-        </div>
-        <h1 style={styles.userText} >
-        Welcome {userData.username},</h1>
-        <div style={styles.userIconContainer}>
-        <FaUserCircle
-          onClick={toggleDropdown}
-          style={styles.userIcon}
-        />
-        {isDropdownOpen && (
-          <div style={styles.dropdown}>
-              <div style={styles.userInfo}>
-                {/* Manage Books Option */}
-                <button onClick={handleProfile} style={styles.myProfileButton}>
-                  My Profile
-                </button>
-                {/* Manage Books Option */}
-                <button onClick={handleManageBooks} style={styles.manageBooksButton}>
-                  Manage Books
-                </button>
-                <button onClick={handleLogout} style={styles.logoutButton}>
-                  Logout
-                </button>
-              </div>
+      <header style={styles.profileHeader}>
+  <h1 style={{ fontSize: '2rem', marginBottom: '1px' }}>Book Exchange Platform</h1>
+  
+  {/* Search Form */}
+  <div style={styles.searchContainer}>
+    <input
+      type="text"
+      placeholder="Search Books"
+      value={searchQuery}
+      onChange={handleSearchQueryChange}
+      style={styles.searchInput}
+    />
+    <button onClick={handleSearch} style={styles.searchButton}>Search</button>
+  </div>
+
+  <div style={styles.userSection}>
+    {/* Notification Icon */}
+    <div style={styles.notificationIconContainer} onClick={handleNotifications}>
+      <FaBell style={styles.notificationIcon} />
+      {notifications.length > 0 && <span style={styles.notificationBadge}>{notifications.length}</span>}
+    </div>
+
+    {/* User Greeting */}
+    <span style={styles.userText}>Welcome, {userData.username}</span>
+
+    {/* User Icon */}
+    <div style={styles.userIconContainer}>
+      <FaUserCircle onClick={toggleDropdown} style={styles.userIcon} />
+      {isDropdownOpen && (
+        <div style={styles.dropdown}>
+          <div style={styles.userInfo}>
+            <button onClick={handleProfile} style={styles.myProfileButton}>My Profile</button>
+            <button onClick={handleManageBooks} style={styles.manageBooksButton}>Manage Books</button>
+            <button onClick={handleLogout} style={styles.logoutButton}>Logout</button>
           </div>
-        )}
-      </div>
-    </header>
+        </div>
+      )}
+    </div>
+  </div>
+</header>
 
 <section style={styles.section}>
   <h3>Your Book Listings</h3>
@@ -278,22 +282,70 @@ const styles = {
     borderRadius: '8px',
     boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
   },
-  headerTitle: {
+  searchContainer: {
+    flexGrow: 1,
+    display: 'flex',
+    justifyContent: 'center',
+    marginRight: '20px',
+  },
+  searchInput: {
+    padding: '10px',
+    border: '1px solid white',
+    borderRadius: '5px',
+    width: '200px',
+  },
+  searchButton: {
+    marginLeft: '10px',
+    backgroundColor: '#5f6393',
+    color: 'white',
+    padding: '10px 20px',
+    border: '1px solid white',
+    borderRadius: '5px',
+    cursor: 'pointer',
+  },
+  userSection: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '15px', // Ensures proper spacing between elements
+  },
+  notificationIconContainer: {
+    position: 'relative',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+  },
+  notificationIcon: {
     fontSize: '1.5rem',
-    fontWeight: '600',
+    color: 'white',
+  },
+  notificationBadge: {
+    position: 'absolute',
+    top: '-5px',
+    right: '-5px',
+    backgroundColor: 'red',
+    color: 'white',
+    borderRadius: '50%',
+    fontSize: '0.75rem',
+    width: '18px',
+    height: '18px',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  userText: {
+    fontSize: '1rem',
+    color: 'white',
+    marginLeft: '10px',
   },
   userIconContainer: {
     position: 'relative',
+    display: 'flex',
+    alignItems: 'center',
     cursor: 'pointer',
   },
   userIcon: {
     fontSize: '2rem',
-    cursor: 'pointer',
-    marginRight: '15px',    // Optional: Reset any default right margin if present
-  },
-  userInfo: {
-    display: 'flex',
-    flexDirection: 'column',
+    color: 'white',
   },
   dropdown: {
     position: 'absolute',
@@ -309,16 +361,6 @@ const styles = {
     padding: '10px 0',
     width: '200px',
   },
-  manageBooksButton: {
-    padding: '10px 20px',
-    fontSize: '16px',
-    border: 'none',
-    backgroundColor: 'transparent',
-    textAlign: 'left',
-    width: '100%',
-    cursor: 'pointer',
-    transition: 'background-color 0.2s, text-decoration 0.2s', // Add transition for underline
-  },
   myProfileButton: {
     padding: '10px 20px',
     fontSize: '16px',
@@ -327,7 +369,15 @@ const styles = {
     textAlign: 'left',
     width: '100%',
     cursor: 'pointer',
-    transition: 'background-color 0.10s, text-decoration 0.2s', // Add transition for underline
+  },
+  manageBooksButton: {
+    padding: '10px 20px',
+    fontSize: '16px',
+    border: 'none',
+    backgroundColor: 'transparent',
+    textAlign: 'left',
+    width: '100%',
+    cursor: 'pointer',
   },
   logoutButton: {
     padding: '10px 20px',
@@ -337,12 +387,6 @@ const styles = {
     textAlign: 'left',
     width: '100%',
     cursor: 'pointer',
-    transition: 'background-color 0.2s, text-decoration 0.2s', // Add transition for underline
-  },
-  userText: {
-    fontSize: '1rem',
-    marginLeft: '310px',  // Pushes the element to the right
-    marginRight: '0',    // Optional: Reset any default right margin if present
   },
   profileInfo: {
     marginBottom: '20px',

@@ -5,8 +5,8 @@ const Header = () => {
   return (
     <header
       style={{
-        backgroundColor: '#343a40', // Dark Gray for a professional look
-        color: '#f8f9fa',  // Light color for text
+        backgroundColor: '#5f6393',
+        color: '#f7f7f7',  // Light color for text
         padding: '10px 20px',
         display: 'flex',
         justifyContent: 'space-between',
